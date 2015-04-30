@@ -8,10 +8,12 @@ set(CMAKE_SYSTEM_PROCESSOR tiva)
 
 CMAKE_FORCE_C_COMPILER(arm-none-eabi-gcc GNU)
 CMAKE_FORCE_CXX_COMPILER(arm-none-eabi-g++ GNU)
+set(CMAKE_SHARED_LIBRARY_LINK_C_FLAGS)
 
 
 # Tivaware
 set(TIVAWARE_PATH "/home/luck/.local/share/tivaware")
+set(LDSCRIPT_PATH "${TIVAWARE_PATH}/examples/boards/ek-tm4c123gxl/project0/project0.ld")
 add_library(tivaware SHARED IMPORTED)
 set_property(
 	TARGET tivaware
@@ -20,6 +22,10 @@ set_property(
 set_property(
 	TARGET tivaware
 	PROPERTY INTERFACE_INCLUDE_DIRECTORIES "${TIVAWARE_PATH}"
+)
+set_property(
+	TARGET tivaware
+	PROPERTY INTERFACE_LINK_LIBRARIES "-T${LDSCRIPT_PATH}"
 )
 
 
@@ -51,10 +57,6 @@ target_compile_options(collect PUBLIC
 	"-fdata-sections"
 	"-ffunction-sections"
 
-	"-g"
-)
-
-target_compile_options(collect PUBLIC
 	"-mcpu=cortex-m4"
 	"-mthumb"
 	"-mfpu=fpv4-sp-d16"
@@ -67,6 +69,7 @@ target_compile_definitions(collect PUBLIC
 )
 
 target_link_libraries(collect PUBLIC
+	"-Wl,--gc-sections"
 	tivaware
 )
 
@@ -78,15 +81,5 @@ add_custom_command(
 	COMMAND arm-none-eabi-objdump --disassemble main.elf > main.asm
 	COMMAND arm-none-eabi-objcopy -O srec main.elf main.s19
 	COMMAND arm-none-eabi-objcopy -O binary main.elf main.bin
+	COMMENT "Translating to binary format"
 )
-
-# Linker options
-set(LDSCRIPT_PATH "ldscript.ld")
-set(CMAKE_SHARED_LIBRARY_LINK_C_FLAGS)
-set(CMAKE_EXE_LINKER_FLAGS
-	"${CMAKE_EXE_LINKER_FLAGS}"
-	"-T${LDSCRIPT_PATH}"
-	"-Wl,--gc-sections"
-)
-string(REGEX REPLACE ";" " " CMAKE_EXE_LINKER_FLAGS "${CMAKE_EXE_LINKER_FLAGS}")
-set(CMAKE_EXE_LINKER_FLAGS "${CMAKE_EXE_LINKER_FLAGS}" CACHE STRING "")
