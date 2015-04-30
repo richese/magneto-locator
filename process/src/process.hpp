@@ -45,12 +45,11 @@ int parse_raw_data(const std::string &raw_data, const int sensor_cnt,
 
 class Process
 {
+protected:
 	bool initialized_;
 	PointVector sensors_;
 	CircleVector circles_;
 	PointVector points_;
-
-protected:
 	std::vector<double> input_;
 
 public:
@@ -61,6 +60,8 @@ public:
 
 	int process(const std::string &raw_data);
 	int process(const std::vector<double> &data);
+
+	Point average_points() const;
 
 	bool is_initialized() const { return initialized_; }
 	size_t get_sensor_cnt() const {return sensors_.size(); }
@@ -96,6 +97,8 @@ public:
 
 	int process(const std::string &raw_data);
 	int process(const std::vector<double> &data);
+
+	int eliminate_triangle(const Triangle &triangle);
 
 	bool is_source_present(const std::vector<double> &input,
 	                       const double treshold);

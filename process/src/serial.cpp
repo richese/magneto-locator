@@ -79,45 +79,56 @@ int Serial::initialize(const char* portname, const int speed, const int parity,
 	return 0;
 }
 
-void Serial::write(const char c)
+int Serial::write(const char c)
 {
-	::write(m_fd_, &c, 1);
+	return ::write(m_fd_, &c, 1);
+
 }
 
-char Serial::read()
+int Serial::read()
 {
+	if (!is_open_)
+		return -1;
+
 	char c;
-
-	::read(m_fd_, &c, 1);
-
-	return c;
+	int retval = ::read(m_fd_, &c, 1);
+	if (retval == -1) {
+		fprintf(stderr, "Error %d while reading: %s\n", errno,
+		        strerror(errno));
+		is_open_ = false;
+		return -1;
+	}
+	return (int) c;
 }
 
-std::string Serial::readline()
+int Serial::readline(std::string *out)
 {
-	char c;
+	int c;
 	std::string line;
 
 	do {
-		::read(m_fd_, &c, 1);
-		line.push_back(c);
+		if ((c = read()) == -1)
+			return -1;
+
+		out->push_back((char) c);
 	} while(c != '\n');
 
-	return line;
+	return 0;
 }
 
 void Serial::flush()
 {
-	::tcflush(m_fd_, TCIOFLUSH);
+	tcflush(m_fd_, TCIOFLUSH);
 }
 
 void Serial::wait_for(const char c)
 {
-	char ci;
+	int ci;
 
 	do {
-		::read(m_fd_, &ci, 1);
-	} while(ci != c);
+		if ((ci = read()) == -1)
+			return;
+	} while((char)ci != c);
 }
 
 bool Serial::is_open() const

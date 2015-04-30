@@ -54,9 +54,9 @@ public:
 	               const int blocking = 0);
 
 	bool is_open() const;
-	void write(const char c);
-	char read();
-	std::string readline();
+	int write(const char c);
+	int read();
+	int readline(std::string *out);
 	void flush();
 	void wait_for(const char c);
 

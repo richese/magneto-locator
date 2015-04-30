@@ -30,9 +30,7 @@
 #include <cmath>
 #include <cstdio>
 
-#include <iostream>
 #include <string>
-#include <vector>
 
 #include <signal.h>
 
@@ -44,13 +42,39 @@
 namespace {
 
 
-void print_circles(const lm::CircleVector &circles);
-
-void print_points(const lm::PointVector &points);
-
-void print_doublevector(const std::vector<double> &vector);
-
 void int_handler(int signum);
+
+
+//
+// Define some usefull constants.
+//
+
+//!
+//! Mountpoint used by LaunchPad tty.
+//!
+const char* kSerialPort = "/dev/ttyACM0";
+
+//!
+//! Position of sensors in plane in the real world.
+//! [cm]
+//!
+const lm::PointVector kSensorPositions = {
+	lm::Point(-3, 0),
+	lm::Point(3, 0),
+	lm::Point(0, std::sqrt(6 * 6 - 3 * 3))
+};
+
+//!
+//! Used to eliminate points inside of sensor triangle.
+//!
+const lm::Triangle kSensorTriangle(kSensorPositions);
+
+//!
+//! Calibration constants.
+//!
+const int kCalibrationLoops = 25;
+const double kCalibrationSpeedInitial = 0.95;
+const double kCalibrationSpeedFactor = 0.01;
 
 
 } // namespace
@@ -68,43 +92,25 @@ int main()
 	sigaction(SIGINT, &int_action, nullptr);
 
 	//
-	// Open connection to embbeded data collector.
-	//
-	const char* port = "/dev/ttyACM0";
-	lm::Serial tiva;
-	if (tiva.initialize(port) != 0) {
-		fprintf(stderr, "Error while opnening serial port at %s.\n",
-		        port);
-		return -1;
-	}
-	fprintf(stderr, "Opened connection to %s\n", port);
-
-	//
-	// Define sensor positions in plane.
-	//
-	const lm::PointVector sensors = {
-		lm::Point(-3, 0),
-		lm::Point(3, 0),
-		lm::Point(0, std::sqrt(6 * 6 - 3 * 3))
-	};
-	fprintf(stderr, "Sensor layout: ");
-	print_points(sensors);
-
-	//
 	// Initialize mathematical model for given sensor layout.
 	//
 	lm::FilteredProcess proc;
-	if (proc.initialize(sensors) != 0) {
+	if (proc.initialize(kSensorPositions) != 0) {
 		fprintf(stderr, "Error while initializing Process instance.\n");
 		return -1;
 	}
 
-	lm::Triangle triangle(sensors);
-
 	//
+	// Open connection to embbeded data collector.
 	// Flush any accumulated input data and sync with data collector.
 	//
-	fprintf(stderr, "Syncing... Flushing.\n");
+	lm::Serial tiva;
+	if (tiva.initialize(kSerialPort) != 0) {
+		fprintf(stderr, "Error while opnening serial port at %s.\n",
+		        kSerialPort);
+		return -1;
+	}
+	fprintf(stderr, "Opened connection to %s\n", kSerialPort);
 	tiva.flush();
 	fprintf(stderr, "Syncing... Waiting. \n");
 	tiva.wait_for('\n');
@@ -113,25 +119,26 @@ int main()
 	//
 	// Calibrate.
 	//
-	const int kCalibrationLoops = 25;
-	const double kSpeedFactor = 0.01;
-	double speed = 0.95;
+	double speed = kCalibrationSpeedInitial;
 
 	fprintf(stderr, "Calibrating... ");
 	for (int i = 0; i < kCalibrationLoops; ++i) {
-		if (proc.calibrate(tiva.readline(), speed) != 0)
+		std::string line;
+		if(tiva.readline(&line) != 0)
 			return -1;
-		speed -= kSpeedFactor;
+		if (proc.calibrate(line, speed) != 0)
+			return -1;
+		speed -= kCalibrationSpeedFactor;
 
 	}
 	fprintf(stderr, "Done.\nEnviroment values: ");
-	print_doublevector(proc.get_environment());
+	lm::print_doublevector(proc.get_environment());
 
 	//
 	// Enter main loop.
 	//
+	lm::Point fpoint = lm::Point();
 	fprintf(stderr, "Entering main loop.\n");
-	//for (int loop = 0; loop < 500; ++loop) {
 	int loop = 0;
 	while (1) {
 		++loop;
@@ -140,7 +147,10 @@ int main()
 		// Load and parse sensor data.
 		// Detect if any sensor is in saturation.
 		//
-		std::string raw_data = tiva.readline();
+		std::string raw_data;
+		if (tiva.readline(&raw_data) != 0)
+			return -1;
+
 		std::vector<double> proc_input;
 		int parse_status = lm::parse_raw_data(raw_data,
 		                                      proc.get_sensor_cnt(),
@@ -149,7 +159,7 @@ int main()
 		default:
 			break;
 		case 1:
-			fprintf(stderr, "Skipping loop: sensor saturated.\n");
+			//fprintf(stderr, "Skipping loop: sensor saturated.\n");
 			continue;
 		case -1:
 			return -1;
@@ -158,71 +168,57 @@ int main()
 		//
 		// Decide whether a magnet is present or not.
 		//
-		const bool present = proc.is_source_present(proc_input, 30.0);
+		if (!proc.is_source_present(proc_input, 30.0))
+			continue;
 
-		if (present) {
-			//
-			// Create possible solutions for current input data.
-			//
-			if (proc.process(proc_input) != 0) {
-				fprintf(stderr, "Error while processing data.\n");
-				continue;
-			}
-
-			//
-			// Skip loop if some solutions are missing.
-			//
-			if (proc.get_points().size() != 6) {
-				fprintf(stderr, "Skipping loop: missing solutions.\n");
-				continue;
-			}
-
-			//
-			// Eliminate solutions inside of sensor triangle.
-			//
-			lm::PointVector valid_points;
-			for (auto p : proc.get_points()) {
-				if (!triangle.is_inside(p))
-					valid_points.push_back(p);
-			}
-
-			if (valid_points.size() < 3) {
-				fprintf(stderr, "This should not happen: missing valid points.\n");
-				if (valid_points.size() < 2)
-					continue;
-			}
-
-			//
-			// Compute average from remaining solutions.
-			//
-			lm::Point result = valid_points.back();
-			valid_points.pop_back();
-			while (valid_points.size() != 0) {
-				result = lm::midpoint(result,
-				                      valid_points.back());
-				valid_points.pop_back();
-			}
-
-			//
-			// Print output.
-			//
-			printf("%i\t\t%lf\t%lf\t%lf\t%lf\n",
-			       loop,
-			       result.x,
-			       result.y,
-			       lm::dist(result, lm::Point(0.0, 0.0)),
-			       lm::angle_deg(result, lm::Point(0.0, 0.0))
-			       );
-
-		} else {
-			//
-			// Continue calibration at slow speed
-			// if no source is present.
-			//
-			//if (proc.calibrate(proc_input, 0.025))
-			//	return -1;
-			//proc.clear();
+		//
+		// Create possible solutions for current input data.
+		//
+		if (proc.process(proc_input) != 0) {
+			fprintf(stderr, "Error while processing data.\n");
+			continue;
 		}
+
+		//
+		// Skip loop if some solutions are missing.
+		//
+		if (proc.get_points().size() != 6) {
+			fprintf(stderr, "Skipping loop: missing solutions.\n");
+			continue;
+		}
+
+		//
+		// Eliminate solutions inside of sensor triangle.
+		//
+		if (proc.eliminate_triangle(kSensorTriangle) != 0) {
+			fprintf(stderr, "Problem while eliminating triangle points.\n");
+			continue;
+		}
+
+		//
+		// Compute average from remaining solutions.
+		//
+		lm::Point result = proc.average_points();
+
+		//if (loop != 1) {
+			//lm::Point tmp = lm::midpoint(result, fpoint);
+			//fpoint = result;
+			//result = tmp;
+		//} else {
+			//fpoint = result;
+		//}
+		//
+		// Print output.
+		//
+		printf("%i\t", loop);
+		printf("%.2lf\t%.2lf\t", result.x, result.y);
+		printf("%.2lf\t", lm::dist(result, lm::Point()));
+		printf("%.2lf°\t", lm::angle_deg(result, lm::Point()));
+		putchar('\n');
+
+		//
+		// End of main loop.
+		//
 	}
 
 	return 0;
@@ -235,36 +231,6 @@ namespace {
 void int_handler(int signum)
 {
 	exit(0);
-}
-
-void print_circles(const lm::CircleVector &circles)
-{
-	if (circles.size() == 0)
-		return;
-
-	for (auto circle : circles)
-		std::cerr << circle << " ";
-	std::cerr << std::endl;
-}
-
-void print_points(const lm::PointVector &points)
-{
-	if (points.size() == 0)
-		return;
-
-	for (auto point : points)
-		std::cerr << point << " ";
-	std::cerr << std::endl;
-}
-
-void print_doublevector(const std::vector<double> &vector)
-{
-	if (vector.size() == 0)
-		return;
-
-	for(auto d : vector)
-		std::cerr << d << " ";
-	std::cerr << std::endl;
 }
 
 

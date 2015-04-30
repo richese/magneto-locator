@@ -106,6 +106,18 @@ int Process::process_common()
 	return 0;
 }
 
+Point Process::average_points() const
+{
+	if (points_.size() == 0)
+		return Point(0.0, 0.0);
+
+	Point avg = points_[0];
+	for (auto it = points_.begin() + 1; it != points_.end(); ++it)
+		avg = avg.midpoint(*it);
+
+	return avg;
+}
+
 void Process::clear()
 {
 	input_ = std::vector<double>();
@@ -252,6 +264,24 @@ int FilteredProcess::process(const std::vector<double> &data)
 		input_[i] = std::abs(data[i] - environment_[i]);
 
 	return process_common();
+}
+
+int FilteredProcess::eliminate_triangle(const Triangle &triangle)
+{
+	if (points_.size() != 2 * get_sensor_cnt())
+		return -1;
+
+	PointVector valid;
+	for (auto p : points_)
+		if (!triangle.is_inside(p))
+			valid.push_back(p);
+
+	if (valid.size() != get_sensor_cnt())
+		return -1;
+
+	points_ = valid;
+
+	return 0;
 }
 
 bool FilteredProcess::is_source_present(const std::vector<double> &input,

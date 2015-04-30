@@ -114,6 +114,8 @@ class Triangle
 public:
 	Triangle(const PointVector &points);
 
+	const Point & operator [] (int i) const;
+
 	double area() const;
 
 	bool is_inside(const Point &p) const;
@@ -139,6 +141,13 @@ Point midpoint(const Point& p1, const Point& p2);
 std::ostream& operator << (std::ostream& os, const Point& p);
 
 std::ostream& operator << (std::ostream& os, const Circle& c);
+
+void print_circles(const lm::CircleVector &circles);
+
+void print_points(const lm::PointVector &points);
+
+void print_doublevector(const std::vector<double> &vector);
+
 
 } // namespace lm
 

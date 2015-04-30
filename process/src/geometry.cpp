@@ -224,6 +224,11 @@ Triangle::Triangle(const PointVector &points) :
 	        points_[2].y) + points_[1].x * points_[2].y);
 }
 
+const Point & Triangle::operator [] (int i) const
+{
+	return points_[i];
+}
+
 double Triangle::area() const
 {
 	return area_;
@@ -277,6 +282,36 @@ std::ostream& operator << (std::ostream& os, const Circle& c)
 {
 	os << "C[" << c.center() << ',' << c.radius() << ']';
 	return os;
+}
+
+void print_circles(const CircleVector &circles)
+{
+	if (circles.size() == 0)
+		return;
+
+	for (auto circle : circles)
+		std::cerr << circle << " ";
+	std::cerr << std::endl;
+}
+
+void print_points(const PointVector &points)
+{
+	if (points.size() == 0)
+		return;
+
+	for (auto point : points)
+		std::cerr << point << " ";
+	std::cerr << std::endl;
+}
+
+void print_doublevector(const std::vector<double> &vector)
+{
+	if (vector.size() == 0)
+		return;
+
+	for(auto d : vector)
+		std::cerr << d << " ";
+	std::cerr << std::endl;
 }
 
 
