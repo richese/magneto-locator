@@ -11,8 +11,10 @@ CMAKE_FORCE_CXX_COMPILER(arm-none-eabi-g++ GNU)
 set(CMAKE_SHARED_LIBRARY_LINK_C_FLAGS)
 
 
-# Tivaware
-set(TIVAWARE_PATH "/home/luck/.local/share/tivaware")
+#
+# Tivaware configuration
+#
+set(TIVAWARE_PATH CACHE PATH "Path to Tivaware installation base directory.")
 set(LDSCRIPT_PATH "${TIVAWARE_PATH}/examples/boards/ek-tm4c123gxl/project0/project0.ld")
 add_library(tivaware SHARED IMPORTED)
 set_property(
@@ -40,12 +42,19 @@ set(collect_src
 	src/timer.c
 	src/uart.c
 )
-
 add_executable(collect
 	"${collect_src}"
 )
+
+# Output name
+set(OUTPUT_DIR "bin")
+set(OUTPUT_BASENAME "${OUTPUT_DIR}/main")
+set(ELF_PATH "${OUTPUT_BASENAME}.elf")
+file(MAKE_DIRECTORY ${OUTPUT_DIR})
+
+# Output target
 set_target_properties(collect
-	PROPERTIES OUTPUT_NAME bin/main.elf
+	PROPERTIES OUTPUT_NAME "${ELF_PATH}"
 )
 
 target_compile_options(collect PUBLIC
@@ -73,13 +82,41 @@ target_link_libraries(collect PUBLIC
 	tivaware
 )
 
-# Create binary
+#
+# Rules to dissasemble and translate to binary.
+#
+set(ASM_PATH "${OUTPUT_BASENAME}.asm")
+set(BIN_PATH "${OUTPUT_BASENAME}.bin")
 add_custom_command(
 	TARGET collect
 	POST_BUILD
-	WORKING_DIRECTORY bin
-	COMMAND arm-none-eabi-objdump --disassemble main.elf > main.asm
-	COMMAND arm-none-eabi-objcopy -O srec main.elf main.s19
-	COMMAND arm-none-eabi-objcopy -O binary main.elf main.bin
-	COMMENT "Translating to binary format"
+	COMMENT "Disassembling ${ELF_PATH} to ${ASM_PATH}"
+	COMMAND arm-none-eabi-objdump --disassemble "${ELF_PATH}" > "${ASM_PATH}"
 )
+add_custom_command(
+	TARGET collect
+	POST_BUILD
+	COMMENT "Translating ${ELF_PATH} to ${BIN_PATH}"
+	COMMAND arm-none-eabi-objcopy -O binary "${ELF_PATH}" "${BIN_PATH}"
+
+)
+set_directory_properties(
+	PROPERTIES ADDITIONAL_MAKE_CLEAN_FILES "${ASM_PATH};${BIN_PATH}"
+)
+
+#
+# Rule to flash binary to chip.
+#
+# Udev rule to allow flashing without superuser permissions for members of group 'users':
+#  echo 'ATTRS{idVendor}=="1cbe", ATTRS{idProduct}=="00fd", GROUP="users", MODE="0660"' | \
+#          sudo tee /etc/udev/rules.d/99-stellaris-launchpad.rules
+#
+find_program(LM4FLASH_PATH lm4flash)
+if (LM4FLASH_PATH STREQUAL "lm4flash-NOTFOUND")
+else ()
+	add_custom_target(flash
+		COMMAND ${LM4FLASH_PATH} -v "${BIN_PATH}"
+		DEPENDS collect
+		COMMENT "Flashing binary."
+	)
+endif ()

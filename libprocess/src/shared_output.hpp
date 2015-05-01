@@ -10,24 +10,8 @@ namespace lm {
 
 struct SharedData
 {
-	// predefined data
-	static const size_t kSensorCount = 3;
-	static const size_t kSensorAxisCount = 3;
-	Point sensors[kSensorCount];
-	Point observer;
-	// sensor data
-	double raw_input[kSensorCount][kSensorAxisCount];
-	double magnitudes[kSensorCount];
-	// process data
-	Circle circles[kSensorCount];
-	Point points[2 * kSensorCount];
-	//output data
-	int state;
+	unsigned int status;
 	Point position;
-	double distance;
-	double angle;
-	double min_angle;
-	double max_angle;
 
 public:
 	SharedData();

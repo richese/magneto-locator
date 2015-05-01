@@ -64,6 +64,12 @@ const lm::PointVector kSensorPositions = {
 	lm::Point(0, std::sqrt(6 * 6 - 3 * 3))
 };
 
+//
+// Points. poi
+//
+const lm::Point kOrigin(0.0, 0.0);
+const lm::Point kCircumcenter(0.0, 1.7320508076);
+
 //!
 //! Used to eliminate points inside of sensor triangle.
 //!
@@ -75,6 +81,48 @@ const lm::Triangle kSensorTriangle(kSensorPositions);
 const int kCalibrationLoops = 25;
 const double kCalibrationSpeedInitial = 0.95;
 const double kCalibrationSpeedFactor = 0.01;
+
+//!
+//! Treshold used for mag. field source detection.
+//! All sensors magnitudes must differ from their enviroment values
+//! by this value.
+//!
+const double kDetectionTreshold = 30.0;
+
+//
+// fir
+//
+class Fir
+{
+	std::vector<double> array_;
+	const int length_;
+	int index_;
+	double sum_;
+	double val_;
+public:
+	Fir(const int length, const double val) :
+		array_(length, val),
+		length_(length),
+		index_(0),
+		sum_(length * val),
+		val_(val)
+	{
+
+	}
+
+	double update(const double val)
+	{
+		sum_ -= array_[index_];
+		array_[index_] = val;
+		sum_ += array_[index_];
+		val_ = sum_ / length_;
+		index_ = (index_ + 1) % length_;
+
+		return val_;
+	}
+
+	inline double get_val() const { return val_; }
+};
 
 
 } // namespace
@@ -137,7 +185,9 @@ int main()
 	//
 	// Enter main loop.
 	//
-	lm::Point fpoint = lm::Point();
+	Fir fir_dist(30, 0.0);
+	Fir fir_angle(30, 0.0);
+
 	fprintf(stderr, "Entering main loop.\n");
 	int loop = 0;
 	while (1) {
@@ -168,7 +218,7 @@ int main()
 		//
 		// Decide whether a magnet is present or not.
 		//
-		if (!proc.is_source_present(proc_input, 30.0))
+		if (!proc.is_source_present(proc_input, kDetectionTreshold))
 			continue;
 
 		//
@@ -200,20 +250,23 @@ int main()
 		//
 		lm::Point result = proc.average_points();
 
-		//if (loop != 1) {
-			//lm::Point tmp = lm::midpoint(result, fpoint);
-			//fpoint = result;
-			//result = tmp;
-		//} else {
-			//fpoint = result;
-		//}
 		//
 		// Print output.
 		//
+		const lm::Point &poi = kCircumcenter;
+		double angle = lm::angle_deg(result, poi);
+		double dist = lm::dist(result, poi);
+
 		printf("%i\t", loop);
-		printf("%.2lf\t%.2lf\t", result.x, result.y);
-		printf("%.2lf\t", lm::dist(result, lm::Point()));
-		printf("%.2lf°\t", lm::angle_deg(result, lm::Point()));
+		//printf("%.2lf\t%.2lf\t", result.x, result.y);
+
+		printf("%.2lf\t", dist);
+		printf("%.2lf°\t", angle);
+
+		printf("%.2lf\t", fir_dist.update(dist));
+		printf("%.2lf°\t", fir_dist.update(angle));
+
+
 		putchar('\n');
 
 		//
@@ -230,7 +283,7 @@ namespace {
 
 void int_handler(int signum)
 {
-	exit(0);
+	exit(signum&0); // using signum just to get rid of the warning
 }
 
 
