@@ -5,10 +5,16 @@ include(CMakeForceCompiler)
 
 set(CMAKE_SYSTEM_NAME Generic)
 set(CMAKE_SYSTEM_PROCESSOR tiva)
-
-CMAKE_FORCE_C_COMPILER(arm-none-eabi-gcc GNU)
-CMAKE_FORCE_CXX_COMPILER(arm-none-eabi-g++ GNU)
 set(CMAKE_SHARED_LIBRARY_LINK_C_FLAGS)
+
+#
+# Set correct compiler
+#
+find_program(ARM-CC arm-none-eabi-gcc)
+find_program(ARM-CXX arm-none-eabi-g++)
+CMAKE_FORCE_C_COMPILER("${ARM-CC}" GNU)
+CMAKE_FORCE_CXX_COMPILER("${ARM-CXX}" GNU)
+
 
 
 #
@@ -50,7 +56,7 @@ add_executable(collect
 set(OUTPUT_DIR "bin")
 set(OUTPUT_BASENAME "${OUTPUT_DIR}/main")
 set(ELF_PATH "${OUTPUT_BASENAME}.elf")
-file(MAKE_DIRECTORY ${OUTPUT_DIR})
+file(MAKE_DIRECTORY "${CMAKE_BINARY_DIR}/${OUTPUT_DIR}")
 
 # Output target
 set_target_properties(collect
@@ -85,23 +91,27 @@ target_link_libraries(collect PUBLIC
 #
 # Rules to dissasemble and translate to binary.
 #
+find_program(ARM-OBJDUMP arm-none-eabi-objdump)
 set(ASM_PATH "${OUTPUT_BASENAME}.asm")
-set(BIN_PATH "${OUTPUT_BASENAME}.bin")
 add_custom_command(
 	TARGET collect
 	POST_BUILD
 	COMMENT "Disassembling ${ELF_PATH} to ${ASM_PATH}"
-	COMMAND arm-none-eabi-objdump --disassemble "${ELF_PATH}" > "${ASM_PATH}"
+	COMMAND "${ARM-OBJDUMP}" --disassemble "${CMAKE_BINARY_DIR}/${ELF_PATH}" > "${CMAKE_BINARY_DIR}/${ASM_PATH}"
 )
+
+find_program(ARM-OBJCOPY arm-none-eabi-objcopy)
+set(BIN_PATH "${OUTPUT_BASENAME}.bin")
 add_custom_command(
 	TARGET collect
 	POST_BUILD
 	COMMENT "Translating ${ELF_PATH} to ${BIN_PATH}"
-	COMMAND arm-none-eabi-objcopy -O binary "${ELF_PATH}" "${BIN_PATH}"
+	COMMAND "${ARM-OBJCOPY}" -O binary "${CMAKE_BINARY_DIR}/${ELF_PATH}" "${CMAKE_BINARY_DIR}/${BIN_PATH}"
 
 )
-set_directory_properties(
-	PROPERTIES ADDITIONAL_MAKE_CLEAN_FILES "${ASM_PATH};${BIN_PATH}"
+
+set_directory_properties(PROPERTIES
+	ADDITIONAL_MAKE_CLEAN_FILES "${CMAKE_BINARY_DIR}/${BIN_PATH};${CMAKE_BINARY_DIR}/${ASM_PATH}"
 )
 
 #
@@ -115,7 +125,7 @@ find_program(LM4FLASH_PATH lm4flash)
 if (LM4FLASH_PATH STREQUAL "lm4flash-NOTFOUND")
 else ()
 	add_custom_target(flash
-		COMMAND ${LM4FLASH_PATH} -v "${BIN_PATH}"
+		COMMAND ${LM4FLASH_PATH} -v "${CMAKE_BINARY_DIR}${BIN_PATH}"
 		DEPENDS collect
 		COMMENT "Flashing binary."
 	)
