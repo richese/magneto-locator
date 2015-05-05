@@ -3,8 +3,10 @@ project(magneto-libprocess CXX)
 
 
 set(libprocess_src
+	src/fir.cpp
 	src/geometry.cpp
 	src/process.cpp
+	src/shared.cpp
 )
 
 add_library(libprocess STATIC "${libprocess_src}")
@@ -24,3 +26,5 @@ target_compile_options(libprocess PRIVATE
 )
 
 target_include_directories(libprocess INTERFACE "src")
+
+target_link_libraries(libprocess "-lrt")

@@ -27,8 +27,8 @@
 //
 //
 //------------------------------------------------------------------------------
-#ifndef _PROCESS_PROCESS_H_
-#define _PROCESS_PROCESS_H_
+#ifndef _LIBPROCESS_PROCESS_H_
+#define _LIBPROCESS_PROCESS_H_
 
 #include <string>
 #include <vector>
@@ -114,4 +114,4 @@ private:
 } // namespace lm
 
 
-#endif // _PROCESS_PROCESS_H_
+#endif // _LIBPROCESS_PROCESS_H_

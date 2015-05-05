@@ -37,6 +37,7 @@
 #include "geometry.hpp"
 #include "process.hpp"
 #include "serial.hpp"
+#include "shared.hpp"
 
 
 namespace {
@@ -89,40 +90,8 @@ const double kCalibrationSpeedFactor = 0.01;
 //!
 const double kDetectionTreshold = 30.0;
 
-//
-// fir
-//
-class Fir
-{
-	std::vector<double> array_;
-	const int length_;
-	int index_;
-	double sum_;
-	double val_;
-public:
-	Fir(const int length, const double val) :
-		array_(length, val),
-		length_(length),
-		index_(0),
-		sum_(length * val),
-		val_(val)
-	{
 
-	}
-
-	double update(const double val)
-	{
-		sum_ -= array_[index_];
-		array_[index_] = val;
-		sum_ += array_[index_];
-		val_ = sum_ / length_;
-		index_ = (index_ + 1) % length_;
-
-		return val_;
-	}
-
-	inline double get_val() const { return val_; }
-};
+lm::Shared g_shared_output = lm::Shared();
 
 
 } // namespace
@@ -138,6 +107,13 @@ int main()
 	int_action.sa_flags = 0;
 
 	sigaction(SIGINT, &int_action, nullptr);
+
+	//
+	// Connect to shared memory segment.
+	//
+	if (g_shared_output.init() != 0) {
+		return -1;
+	}
 
 	//
 	// Initialize mathematical model for given sensor layout.
@@ -185,21 +161,23 @@ int main()
 	//
 	// Enter main loop.
 	//
-	Fir fir_dist(30, 0.0);
-	Fir fir_angle(30, 0.0);
-
 	fprintf(stderr, "Entering main loop.\n");
+	g_shared_output.set_process_state(lm::CONN_ACTIVE);
 	int loop = 0;
+
 	while (1) {
 		++loop;
 		proc.clear();
+
+		lm::MagnetoData data;
+
 		//
 		// Load and parse sensor data.
 		// Detect if any sensor is in saturation.
 		//
 		std::string raw_data;
 		if (tiva.readline(&raw_data) != 0)
-			return -1;
+			goto error;
 
 		std::vector<double> proc_input;
 		int parse_status = lm::parse_raw_data(raw_data,
@@ -212,7 +190,7 @@ int main()
 			//fprintf(stderr, "Skipping loop: sensor saturated.\n");
 			continue;
 		case -1:
-			return -1;
+			goto error;
 		}
 
 		//
@@ -236,6 +214,7 @@ int main()
 			fprintf(stderr, "Skipping loop: missing solutions.\n");
 			continue;
 		}
+		data.set_solutions(proc.get_points());
 
 		//
 		// Eliminate solutions inside of sensor triangle.
@@ -259,15 +238,22 @@ int main()
 
 		printf("%i\t", loop);
 		//printf("%.2lf\t%.2lf\t", result.x, result.y);
-
 		printf("%.2lf\t", dist);
 		printf("%.2lf°\t", angle);
-
-		printf("%.2lf\t", fir_dist.update(dist));
-		printf("%.2lf°\t", fir_dist.update(angle));
-
-
 		putchar('\n');
+
+		//
+		// Copy collected data to shared memory
+		//
+		data.set_sensors(kSensorPositions);
+		data.set_magnitudes(proc_input);
+		data.set_source_present(true);
+		data.set_circles(proc.get_circles());
+		data.set_poi(poi);
+		data.set_result(result);
+		data.set_timestamp();
+		if (g_shared_output.is_visualize_connected())
+			g_shared_output.set_data(data);
 
 		//
 		// End of main loop.
@@ -275,6 +261,10 @@ int main()
 	}
 
 	return 0;
+
+error:
+	g_shared_output.set_process_state(lm::CONN_NONE);
+	return -1;
 }
 
 
@@ -283,6 +273,7 @@ namespace {
 
 void int_handler(int signum)
 {
+	g_shared_output.set_process_state(lm::CONN_NONE);
 	exit(signum&0); // using signum just to get rid of the warning
 }
 

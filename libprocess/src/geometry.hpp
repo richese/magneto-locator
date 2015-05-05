@@ -27,8 +27,8 @@
 //
 //
 //------------------------------------------------------------------------------
-#ifndef _PROCESS_GEOMETRY_H_
-#define _PROCESS_GEOMETRY_H_
+#ifndef _LIBPROCESS_GEOMETRY_H_
+#define _LIBPROCESS_GEOMETRY_H_
 
 #include <array>
 #include <iostream>
@@ -151,4 +151,4 @@ void print_doublevector(const std::vector<double> &vector);
 
 } // namespace lm
 
-#endif // _PROCESS_GEOMETRY_H_
+#endif // _LIBPROCESS_GEOMETRY_H_
