@@ -21,6 +21,8 @@ namespace lm {
 
 struct MagnetoData
 {
+	bool valid;
+
 	Point sensor[MD_SENSOR_COUNT];
 	Point poi;
 
@@ -39,6 +41,7 @@ public:
 	MagnetoData();
 	MagnetoData(const MagnetoData &other);
 
+	void set_valid(const bool v = true);
 	void set_sensors(const PointVector &s);
 	void set_poi(const Point& p);
 	void set_input(const std::vector<double> &in);

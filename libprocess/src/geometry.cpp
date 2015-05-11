@@ -130,6 +130,21 @@ Point Point::midpoint(const Point& other) const
 	return *this + (diff / 2.0);
 }
 
+Point Point::operator - () const
+{
+	return Point(-x, -y);
+}
+
+Point Point::mirror_x() const
+{
+	return Point(-x, y);
+}
+
+Point Point::mirror_y() const
+{
+	return Point(x, -y);
+}
+
 // Circle
 // konstruktory
 Circle::Circle() :

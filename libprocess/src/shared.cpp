@@ -24,6 +24,8 @@ const char* Shared::kSegmentName = "/libprocess-shared-data";
 // MagnetoData
 MagnetoData::MagnetoData()
 {
+	valid = false;
+
 	for (int i = 0; i < MD_SENSOR_COUNT; ++i)
 		sensor[i] = Point();
 
@@ -51,6 +53,11 @@ MagnetoData::MagnetoData()
 MagnetoData::MagnetoData(const MagnetoData &other)
 {
 	memcpy(this, &other, sizeof(MagnetoData));
+}
+
+void MagnetoData::set_valid(const bool v)
+{
+	valid = v;
 }
 
 void MagnetoData::set_sensors(const PointVector &s)
@@ -215,8 +222,8 @@ int Shared::unlink()
 				strerror(errno));
 			return -1;
 		}
-		fd_ = -1;
 	}
+	fd_ = -1;
 
 	return 0;
 }

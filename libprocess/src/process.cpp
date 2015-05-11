@@ -137,10 +137,9 @@ Circle Process::make_circle(const size_t i, const size_t j)
 
 	const double cx = (kk*q.x - p.x) / men;
 	const double cy = (kk*q.y - p.y) / men;
-	const double r2 =   pow(cx, 2) + pow(cy, 2)
+	const double r2 = pow(cx, 2) + pow(cy, 2)
 	                  - ( kk * (pow(q.x, 2) + pow(q.y, 2))
-	                      - pow(p.x, 2) - pow(p.y, 2)
-	                    ) / men;
+	                  - pow(p.x, 2) - pow(p.y, 2) ) / men;
 
 	return Circle(cx, cy, sqrt(r2));
 }

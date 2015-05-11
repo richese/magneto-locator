@@ -66,6 +66,10 @@ public:
 	double dist(const double& x, const double& y) const;
 
 	Point midpoint(const Point& other) const;
+
+	Point operator - () const;
+	Point mirror_x() const;
+	Point mirror_y() const;
 };
 
 typedef std::vector<lm::Point> PointVector;
