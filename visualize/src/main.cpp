@@ -2,9 +2,9 @@
 #include "Visualize.hpp"
 
 
-#ifdef __cplusplus
-extern "C"
-#endif
+//#ifdef __cplusplus
+//extern "C"
+//#endif
 int main(int argc, char* argv[])
 {
 	engine::Engine::log.setLogLevel(engine::LOG_LEVEL_VERBOSE);

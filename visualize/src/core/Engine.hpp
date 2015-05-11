@@ -10,7 +10,7 @@
 #include "Window.hpp"
 
 
-#define HW_ACCELERATED_WINDOW 1
+//#define HW_ACCELERATED_WINDOW 1
 
 
 namespace engine {

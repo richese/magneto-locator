@@ -237,7 +237,7 @@ int main()
 		double dist = lm::dist(result, poi);
 
 		printf("%i\t", loop);
-		//printf("%.2lf\t%.2lf\t", result.x, result.y);
+		printf("%.2lf\t%.2lf\t\t", result.x, result.y);
 		printf("%.2lf\t", dist);
 		printf("%.2lf°\t", angle);
 		putchar('\n');
@@ -252,6 +252,7 @@ int main()
 		data.set_poi(poi);
 		data.set_result(result);
 		data.set_timestamp();
+		data.set_valid();
 		if (g_shared_output.is_visualize_connected())
 			g_shared_output.set_data(data);
 
