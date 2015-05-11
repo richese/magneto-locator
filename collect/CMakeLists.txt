@@ -125,7 +125,7 @@ find_program(LM4FLASH_PATH lm4flash)
 if (LM4FLASH_PATH STREQUAL "lm4flash-NOTFOUND")
 else ()
 	add_custom_target(flash
-		COMMAND ${LM4FLASH_PATH} -v "${CMAKE_BINARY_DIR}${BIN_PATH}"
+		COMMAND ${LM4FLASH_PATH} -v "${CMAKE_BINARY_DIR}/${BIN_PATH}"
 		DEPENDS collect
 		COMMENT "Flashing binary."
 	)
