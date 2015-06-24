@@ -275,7 +275,7 @@ namespace {
 void int_handler(int signum)
 {
 	g_shared_output.set_process_state(lm::CONN_NONE);
-	exit(signum&0); // using signum just to get rid of the warning
+	exit(signum&0); // using signum just to get rid of the 'parameter not used' warning
 }
 
 

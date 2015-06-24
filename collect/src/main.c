@@ -149,6 +149,7 @@ int main(void)
 					Printf("%i %i %i ", data[i].x,
 					                    data[i].y,
 					                    data[i].z);
+				Putchar('\r');
 				Putchar('\n');
 			}
 		}
